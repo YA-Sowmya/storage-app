@@ -1,25 +1,29 @@
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import AppLayout from "./layout/AppLayout";
+import AuthPage from "./pages/AuthPage";
+import Dashboard from "./pages/Dashboard";
+import Documents from "./pages/Documents";
+import Images from "./pages/Images";
+import Media from "./pages/Media";
+import Others from "./pages/Others";
+import AllFiles from "./pages/AllFiles";
 
-function App() {
+export default function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AuthPage />} />
+
+        {/* Layout for all dashboard pages */}
+        <Route path="/" element={<AppLayout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="allfiles" element={<AllFiles />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="images" element={<Images />} /> {/* ✅ Must be here */}
+          <Route path="media" element={<Media />} />
+          <Route path="others" element={<Others />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;
