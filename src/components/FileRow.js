@@ -8,7 +8,9 @@ export default function FileRow({ file, onRefresh }) {
   const [detailsModal, setDetailsModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
   const [previewModal, setPreviewModal] = useState(false);
+  const [unsupportedModal, setUnsupportedModal] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const menuRef = useRef(null);
@@ -45,12 +47,24 @@ export default function FileRow({ file, onRefresh }) {
   };
 
   const handlePreview = async () => {
+    setPreviewing(true);
     const { data } = await supabase.storage
       .from("files")
       .createSignedUrl(file.file_path, 60);
-    if (data?.signedUrl) {
-      setPreviewUrl(data.signedUrl);
+    setPreviewing(false);
+
+    if (!data?.signedUrl) return;
+
+    setPreviewUrl(data.signedUrl);
+
+    if (
+      file.type?.startsWith("image/") ||
+      file.type?.startsWith("video/") ||
+      file.type === "application/pdf"
+    ) {
       setPreviewModal(true);
+    } else {
+      setUnsupportedModal(true);
     }
   };
 
@@ -75,41 +89,33 @@ export default function FileRow({ file, onRefresh }) {
     setConfirmModal(false);
   };
 
-  const isPreviewable = () =>
-    file.type?.startsWith("image/") ||
-    file.type === "application/pdf" ||
-    file.type?.startsWith("video/");
-
   return (
     <>
       <div
-        className="bg-darkBlue rounded-full px-2 sm:px-8 py-2 shadow-sm shadow-steelBlue relative transition text-paleBlue hover:shadow-md hover:shadow-steelBlue  hover:bg-opacity-50 cursor-pointer"
+        className="bg-darkBlue rounded-full px-2 sm:px-8 py-2 shadow-sm shadow-steelBlue relative transition text-paleBlue hover:shadow-md hover:shadow-steelBlue hover:bg-opacity-50 cursor-pointer"
         onClick={handlePreview}
       >
-        <div className="flex justify-between gap-4 items-center cursor-pointer">
-          <div className="flex items-center gap-2 truncate min-w-[60px] max-w-[200px] sm:max-w-[700px]">
-            {getFileIcon(file.extension)}
+        <div className="flex justify-between items-center gap-4 w-full">
+          <div className="flex items-center gap-3 truncate w-full">
+            <span>{getFileIcon(file.extension)}</span>
             <span className="truncate text-paragraphLg text-mist">
               {getDisplayName()}
             </span>
           </div>
-          <div className="flex gap-2 items-center">
-            <div className="text-mist min-w-[60px] text-paragraph">
+          <div
+            className="flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-mist min-w-[60px] text-paragraph">
               {(file.size / 1024).toFixed(2)} KB
-            </div>
-
+            </span>
             <div className="relative" ref={menuRef}>
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen((prev) => !prev);
-                }}
                 className="text-paleBlue"
-                aria-label="More options"
+                onClick={() => setMenuOpen((prev) => !prev)}
               >
                 <i className="bi bi-three-dots-vertical"></i>
               </button>
-
               {menuOpen && (
                 <div className="absolute right-0 mt-1 bg-black border border-steelBlue text-heading3 text-paleBlue rounded-md shadow-lg w-36 z-50">
                   <button
@@ -122,7 +128,6 @@ export default function FileRow({ file, onRefresh }) {
                   >
                     Download
                   </button>
-
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -133,7 +138,6 @@ export default function FileRow({ file, onRefresh }) {
                   >
                     Details
                   </button>
-
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -144,7 +148,6 @@ export default function FileRow({ file, onRefresh }) {
                   >
                     Copy link
                   </button>
-
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -162,7 +165,13 @@ export default function FileRow({ file, onRefresh }) {
         </div>
       </div>
 
-      {previewModal && isPreviewable() && previewUrl && (
+      {previewing && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex justify-center items-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-paleBlue"></div>
+        </div>
+      )}
+
+      {previewModal && previewUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center px-4">
           <div className="relative w-full max-w-6xl max-h-[90vh] bg-darkBlue rounded-xl shadow-lg p-4 overflow-auto">
             <button
@@ -172,11 +181,9 @@ export default function FileRow({ file, onRefresh }) {
             >
               <i className="bi bi-x-lg" />
             </button>
-
-            <h2 className="text-heading2 sm:text-heading1 font-bold text-mist text-center mb-4">
+            <h2 className="text-heading2 sm:text-heading1 font-bold font-heading text-mist text-center mb-4">
               Preview
             </h2>
-
             {file.type.startsWith("image/") ? (
               <img
                 src={previewUrl}
@@ -189,17 +196,35 @@ export default function FileRow({ file, onRefresh }) {
                 src={previewUrl}
                 className="w-full h-full object-contain rounded"
               />
-            ) : file.type === "application/pdf" ? (
+            ) : (
               <iframe
                 src={previewUrl}
                 title="PDF Preview"
                 className="w-full h-[600px] rounded"
               />
-            ) : null}
+            )}
           </div>
         </div>
       )}
 
+      {/* Unsupported File Modal */}
+      <Modal
+        isOpen={unsupportedModal}
+        onClose={() => setUnsupportedModal(false)}
+        title="Preview Not Available"
+      >
+        <div className="text-mist text-center space-y-4 text-paragraphLg">
+          <p>This file type cannot be previewed.</p>
+          <button
+            onClick={handleDownload}
+            className="px-4 py-1 bg-primary text-paragraphLg font-paragraph text-mist hover:text-paleBlue rounded-full"
+          >
+            Download File
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation */}
       <Modal
         isOpen={confirmModal}
         onClose={() => setConfirmModal(false)}
@@ -224,6 +249,7 @@ export default function FileRow({ file, onRefresh }) {
         </div>
       </Modal>
 
+      {/* File Details */}
       <Modal
         isOpen={detailsModal}
         onClose={() => setDetailsModal(false)}
@@ -246,6 +272,7 @@ export default function FileRow({ file, onRefresh }) {
         </div>
       </Modal>
 
+      {/* Link Copied Popover */}
       {copied && (
         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary text-mist text-paragraphLg px-3 py-1 rounded shadow-md z-50">
           Link copied!
