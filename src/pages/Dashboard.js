@@ -74,7 +74,7 @@ export default function Dashboard() {
   const usagePercent = ((totalUsedGB / totalQuotaGB) * 100).toFixed(0);
 
   return (
-    <div className="p-6 grid grid-cols-1 lg:grid-cols-7 gap-6">
+    <div className="p-2 md:p-6 grid grid-cols-1 lg:grid-cols-7 gap-6">
       <div className="lg:col-span-4 space-y-10">
         <div className="bg-darkBlue text-mist py-6 px-6 rounded-xl shadow-md shadow-steelBlue flex flex-col sm:flex-row items-center sm:items-center gap-8 sm:gap-12">
           <div className="relative w-52 h-52 shrink-0">
