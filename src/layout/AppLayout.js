@@ -15,7 +15,7 @@ export default function AppLayout() {
           <Navbar toggleSidebar={() => setSidebarOpen(true)} />
         </div>
 
-        <main className="flex-1 overflow-y-auto rounded-xl bg-black p-4">
+        <main className="flex-1 overflow-y-auto rounded-xl bg-black p-1 sm:p-4">
           <Outlet />
         </main>
       </div>
