@@ -3,14 +3,14 @@ import { supabase } from "../components/supabaseClient";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
 import InputField from "../components/ui/InputField";
-
+import { useToast } from "../context/ToastContext";
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+  const { showToast } = useToast();
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -24,7 +24,13 @@ export default function AuthPage() {
       setLoading(false);
 
       if (error) {
-        alert(error.message);
+        if (error.message.includes("Invalid login credentials")) {
+          showToast("Incorrect email or password.", "error");
+        } else if (error.message.includes("User not found")) {
+          showToast("This user does not exist.");
+        } else {
+          showToast("Login failed. Please try again.");
+        }
       } else {
         navigate("/dashboard");
       }
@@ -36,7 +42,11 @@ export default function AuthPage() {
 
       if (error) {
         setLoading(false);
-        alert(error.message);
+        if (error.message.includes("User already registered")) {
+          showToast("User already exists. Please log in.");
+        } else {
+          showToast("Sign up failed. Please try again.");
+        }
         return;
       }
 
@@ -46,7 +56,9 @@ export default function AuthPage() {
       setLoading(false);
 
       if (loginError) {
-        alert(loginError.message);
+        showToast(
+          "Signup successful, but login failed. Please try logging in."
+        );
       } else {
         navigate("/dashboard");
       }

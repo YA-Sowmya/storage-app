@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import Modal from "./ui/Modal";
 import { getFileIcon } from "../utils/getFileIcon";
-
+import { useToast } from "../context/ToastContext";
 export default function FileRow({ file, onRefresh }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [detailsModal, setDetailsModal] = useState(false);
@@ -12,7 +12,7 @@ export default function FileRow({ file, onRefresh }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [copied, setCopied] = useState(false);
-
+  const { showToast } = useToast();
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -35,14 +35,32 @@ export default function FileRow({ file, onRefresh }) {
     file.file_path;
 
   const handleDownload = async () => {
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from("files")
       .createSignedUrl(file.file_path, 60);
-    if (data?.signedUrl) {
+
+    if (!data?.signedUrl) {
+      showToast("Failed to generate download link.", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
       const a = document.createElement("a");
-      a.href = data.signedUrl;
+      a.href = url;
       a.download = getDisplayName();
+      document.body.appendChild(a);
       a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast("Download started", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Download failed.", "error");
     }
   };
 
@@ -74,19 +92,36 @@ export default function FileRow({ file, onRefresh }) {
       .createSignedUrl(file.file_path, 60);
     if (data?.signedUrl) {
       navigator.clipboard.writeText(data.signedUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1000);
+      showToast("Link copied to clipboard!", "success");
+    } else {
+      showToast("Failed to copy link.", "error");
     }
   };
 
   const handleDelete = async () => {
-    await supabase.storage.from("files").remove([file.file_path]);
-    await supabase
-      .from("file_metadata")
-      .delete()
-      .eq("file_path", file.file_path);
-    onRefresh?.();
-    setConfirmModal(false);
+    try {
+      const { error: storageError } = await supabase.storage
+        .from("files")
+        .remove([file.file_path]);
+
+      const { error: dbError } = await supabase
+        .from("file_metadata")
+        .delete()
+        .eq("file_path", file.file_path);
+
+      if (storageError || dbError) {
+        console.error(storageError || dbError);
+        showToast("Failed to delete the file.", "error");
+      } else {
+        showToast("File deleted successfully.", "success");
+        onRefresh?.();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Something went wrong while deleting.", "error");
+    } finally {
+      setConfirmModal(false);
+    }
   };
 
   return (
@@ -207,7 +242,6 @@ export default function FileRow({ file, onRefresh }) {
         </div>
       )}
 
-      {/* Unsupported File Modal */}
       <Modal
         isOpen={unsupportedModal}
         onClose={() => setUnsupportedModal(false)}
@@ -271,13 +305,6 @@ export default function FileRow({ file, onRefresh }) {
           </p>
         </div>
       </Modal>
-
-      {/* Link Copied Popover */}
-      {copied && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-primary text-mist text-paragraphLg px-3 py-1 rounded shadow-md z-50">
-          Link copied!
-        </div>
-      )}
     </>
   );
 }
